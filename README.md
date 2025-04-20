@@ -161,5 +161,3 @@ Copyright © 2025 [ERZI Solutions](https://www.globl.contat)
 
 > **Star ⭐ this repo** if it saved you hours—help others discover it via GitHub & Google search algorithms!
 ```
-
-Copy this into `README.md`, commit, push, and watch the SEO magic pull in traffic—and contributors—like a magnet. 🔥
