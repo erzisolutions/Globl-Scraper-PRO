@@ -1,0 +1,11 @@
+name: Node Syntax Check
+
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Syntax check
+        run: node --check src/globl-scraper-pro.user.js

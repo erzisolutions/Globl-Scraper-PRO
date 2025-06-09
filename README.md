@@ -4,7 +4,7 @@ SEO‑KEYWORDS: GelbeSeiten scraper, B2B lead generation, Tampermonkey userscrip
 # 🟢 **Globl Scraper PRO**  
 ### Enterprise **GelbeSeiten** Lead‑Generation Userscript by **ERZI Solutions**
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg) 
+![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg) 
 ![Made With 💚 By ERZI](https://img.shields.io/badge/made_by-ERZI_SOLUTIONS-562b7d) 
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES2023-yellow) 
@@ -63,14 +63,15 @@ SEO‑KEYWORDS: GelbeSeiten scraper, B2B lead generation, Tampermonkey userscrip
 ---
 
 ## Quick Start
-1. Search GelbeSeiten for a **category + city** (e.g. *Installateure, München*).  
-2. Hit **▶️ Start** in the floating panel.  
-3. Optionally enable **“Remove processed”** for faster DOM recycling.  
-4. Click **👁️ Ergebnisse anzeigen** any time to inspect + search the dataset.  
-5. Mash **⬇️ JSON herunterladen** for an SEO‑friendly filename like  
-   `2025‑04‑20_Installateure_Muenchen.json`.  
-6. Import into your favourite CRM / cold‑e‑mail tool / Python script.  
-7. **Celebrate** like you just 10×‑ed your pipeline. 🎉
+1. Search GelbeSeiten for a **category + city** (e.g. *Installateure, München*).
+2. On first use, a login modal appears. Enter **admin/propass** to unlock the UI.
+3. Hit **▶️ Start** in the floating panel.
+4. Optionally enable **“Remove processed”** for faster DOM recycling.
+5. Click **👁️ Ergebnisse anzeigen** any time to inspect + search the dataset.
+6. Mash the export buttons (**JSON**, **CSV**, **Excel**) for SEO‑friendly filenames
+   like `2025‑04‑20_Installateure_Muenchen.*`.
+7. Import into your favourite CRM / cold‑e‑mail tool / Python script.
+8. **Celebrate** like you just 10×‑ed your pipeline. 🎉
 
 ---
 
@@ -83,7 +84,9 @@ SEO‑KEYWORDS: GelbeSeiten scraper, B2B lead generation, Tampermonkey userscrip
 | **Mehr laden** | Manual load‑more with checkbox for multi‑click |
 | **M1–M4** | Turbo loaders (~1 000 leads each) |
 | **Ergebnisse anzeigen** | Modal with searchable table |
-| **JSON herunterladen** | 1‑click export |
+| **JSON herunterladen** | Download dataset as JSON |
+| **CSV herunterladen** | Download as CSV |
+| **Excel herunterladen** | Download as XLS |
 | **Verarbeitete entfernen EIN/AUS** | Remove scraped nodes → memory saver |
 
 *All buttons feature animated gradients & hover zoom for pro vibes.*
@@ -128,9 +131,9 @@ SEO‑KEYWORDS: GelbeSeiten scraper, B2B lead generation, Tampermonkey userscrip
 
 ## Roadmap
 * **🔄 Auto‑update** when GelbeSeiten DOM changes  
-* **📊 CSV & Excel exports**  
+* **📊 CSV & Excel exports** (implemented)
 * **🌐 Multi‑domain support** (DasTelefonbuch.de, Herold.at)  
-* **🧩 Plugin API** for custom field extraction  
+* **🧩 Plugin API** for custom field extraction (implemented – see `docs/plugins.md`)
 
 Leave a 💬 **GitHub Issue** with feature requests!
 
