@@ -10,7 +10,7 @@ SEO‑KEYWORDS: GelbeSeiten scraper, B2B lead generation, JavaScript scraper too
 # 🟢 Globl Scraper PRO  
 ### Enterprise-Grade GelbeSeiten Extractor by **ERZI SOLUTIONS™**
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg) 
+![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)  
 ![Made by ERZI](https://img.shields.io/badge/Powered‑by‑ERZI‑Solutions-562b7d)  
 ![JavaScript](https://img.shields.io/badge/Language-JavaScript-yellow.svg)  
@@ -78,7 +78,8 @@ SEO‑KEYWORDS: GelbeSeiten scraper, B2B lead generation, JavaScript scraper too
 ## 📦 Modular Design Philosophy
 
 - 🔄 **Decoupled Components** — Each feature (scraper, UI, download, modal) lives in its own logic scope
-- 🧩 **Easily Extendable** — Add CSV support, CRM API export, or region filters with minimal changes
+ - 🧩 **Easily Extendable** — Built-in JSON/CSV/Excel export; add CRM APIs or region filters with minimal changes
+- 🔌 **Plugin Hooks** — Register callbacks via `registerPlugin()` to customize the scraping flow
 - ⚙️ **Declarative Constants** — Delay times, limits, and settings at top for quick tuning
 
 ---

@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name           🟢 Globl Scraper PRO
 // @namespace      https://www.globl.contat
-// @version        2.0.0
+// @version        2.1.0
 // @description    Enterprise-grade GelbeSeiten Scraper with modular architecture, enhanced error handling, JSON export, and intuitive UI.
 // @author         Globl Contact
 // @match          https://www.gelbeseiten.de/*
+// @match          https://www.dastelefonbuch.de/*
+// @match          https://www.herold.at/*
 // @grant          GM_addStyle
 // @grant          GM_setClipboard
 // @grant          GM_xmlhttpRequest
@@ -14,7 +16,7 @@
 (async function () {
     'use strict';
 
-    console.log("🚀 Globl Scraper gestartet!");
+    logger.info("🚀 Globl Scraper gestartet!");
 
     /*******************************
      * KONFIGURATION & GLOBALE VARIABLEN
@@ -30,6 +32,55 @@
     let cssEnabled = true;
     let loadMultiple = true;
 
+    const LOGIN_USER = 'admin';
+    const LOGIN_PASS = 'propass';
+
+    /*******************************
+     * PLUGIN-ARCHITEKTUR & LOGGER
+     *******************************/
+    const plugins = {
+        beforeAddLead: [],
+        afterAddLead: [],
+        afterScrape: []
+    };
+
+    function registerPlugin(event, fn) {
+        if (plugins[event]) {
+            plugins[event].push(fn);
+        } else {
+            logger.warn(`Unbekanntes Plugin-Event: ${event}`);
+        }
+    }
+
+    function runPlugins(event, payload) {
+        if (!plugins[event]) return true;
+        for (const fn of plugins[event]) {
+            const res = fn(payload);
+            if (res === false) return false;
+        }
+        return true;
+    }
+
+    const logger = {
+        info: (...args) => console.log('%c[INFO]', 'color:green', ...args),
+        warn: (...args) => console.warn('%c[WARN]', 'color:orange', ...args),
+        error: (...args) => console.error('%c[ERROR]', 'color:red', ...args),
+        group: (...args) => console.group(...args),
+        groupEnd: () => console.groupEnd()
+    };
+
+    // Einfaches Deduplizierungs-Plugin
+    const dedupSet = new Set();
+    registerPlugin('beforeAddLead', ({ lead }) => {
+        const key = `${lead.name}|${lead.phone}|${lead.detailLink}`;
+        if (dedupSet.has(key)) {
+            logger.info('Duplikat übersprungen:', key);
+            return false; // Lead nicht erneut hinzufügen
+        }
+        dedupSet.add(key);
+        return true;
+    });
+
     /*******************************
      * HILFSFUNKTIONEN
      *******************************/
@@ -42,7 +93,7 @@
             if (el.id === "gs-scraper-style") return;
             el.disabled = !cssEnabled;
         });
-        console.log(`🎨 CSS ist jetzt ${cssEnabled ? "eingeschaltet" : "ausgeschaltet"}.`);
+        logger.info(`🎨 CSS ist jetzt ${cssEnabled ? "eingeschaltet" : "ausgeschaltet"}.`);
     };
 
     // Entfernt Leerzeichen und Bindestriche; ersetzt führende "0" mit "49"
@@ -82,7 +133,48 @@
         a.download = `${dateStr} ${searchWhat} ${searchCity}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        console.log("📊 Daten erfolgreich als JSON heruntergeladen!");
+        logger.info("📊 Daten erfolgreich als JSON heruntergeladen!");
+    }
+
+    function convertToCSV(items) {
+        const headers = Object.keys(items[0] || {});
+        const escape = (str) => '"' + String(str).replace(/"/g, '""') + '"';
+        const rows = items.map(itm => headers.map(h => escape(itm[h] ?? '')).join(','));
+        return headers.join(',') + '\n' + rows.join('\n');
+    }
+
+    function downloadDataAsCSV() {
+        if (leads.length === 0) {
+            alert("🚨 Keine Daten zum Herunterladen!");
+            return;
+        }
+        const csvStr = convertToCSV(leads);
+        const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, ':');
+        const blob = new Blob([csvStr], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${dateStr} leads.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        logger.info('📊 Daten erfolgreich als CSV heruntergeladen!');
+    }
+
+    function downloadDataAsExcel() {
+        if (leads.length === 0) {
+            alert('🚨 Keine Daten zum Herunterladen!');
+            return;
+        }
+        const csvStr = convertToCSV(leads);
+        const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, ':');
+        const blob = new Blob([csvStr], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${dateStr} leads.xls`;
+        a.click();
+        URL.revokeObjectURL(url);
+        logger.info('📊 Daten erfolgreich als Excel heruntergeladen!');
     }
 
     // Umhüllung von GM_xmlhttpRequest in ein Promise
@@ -112,7 +204,8 @@
         if (scrapeInProgress) return;
         scrapeInProgress = true;
         let totalScraped = 0;
-        console.log("🚀 Scraping gestartet...");
+        logger.group("Scraping");
+        logger.info("🚀 Scraping gestartet...");
 
         while (!isPaused && totalScraped < MAX_ENTRIES) {
             const entries = Array.from(document.querySelectorAll('.mod-Treffer:not([data-scraped="true"])'));
@@ -122,11 +215,11 @@
                     loadMoreButton.scrollIntoView({ behavior: "smooth", block: "center" });
                     await delay(LOAD_MORE_DELAY);
                     loadMoreButton.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-                    console.log("📡 Lade neue Einträge...");
+                    logger.info("📡 Lade neue Einträge...");
                     await delay(SCRAPE_DELAY);
                     continue;
                 } else {
-                    console.log("🛑 Keine weiteren Einträge zum Laden.");
+                    logger.warn("🛑 Keine weiteren Einträge zum Laden.");
                     break;
                 }
             }
@@ -187,15 +280,15 @@
                     if (emailUrl) {
                         try {
                             let fullUrl = new URL(emailUrl, location.origin).href;
-                            console.log("Abrufe E-Mail via GM_xmlhttpRequest von:", fullUrl);
+                            logger.info("Abrufe E-Mail via GM_xmlhttpRequest von:", fullUrl);
                             email = await fetchEmail(fullUrl);
                             if (!email) {
-                                console.warn("Leere Antwort, nutze Fallback.");
+                                logger.warn("Leere Antwort, nutze Fallback.");
                                 const encodedEmail = emailElem.getAttribute('data-prg');
                                 email = encodedEmail ? atob(encodedEmail) : emailElem.textContent.trim();
                             }
                         } catch (e) {
-                            console.error("Fehler beim Abrufen der E-Mail:", e);
+                            logger.error("Fehler beim Abrufen der E-Mail:", e);
                             const encodedEmail = emailElem.getAttribute('data-prg');
                             email = encodedEmail ? atob(encodedEmail) : emailElem.textContent.trim();
                         }
@@ -205,7 +298,7 @@
                             try {
                                 email = atob(encodedEmail);
                             } catch (e) {
-                                console.error("Fehler beim Dekodieren der E-Mail:", e);
+                                logger.error("Fehler beim Dekodieren der E-Mail:", e);
                                 email = emailElem.textContent.trim();
                             }
                         } else {
@@ -242,7 +335,7 @@
                         try {
                             website = atob(websiteEncoded);
                         } catch (e) {
-                            console.error("Fehler beim Dekodieren der Webseite:", e);
+                            logger.error("Fehler beim Dekodieren der Webseite:", e);
                             website = websiteElem.textContent.trim();
                         }
                     } else {
@@ -276,7 +369,7 @@
                     }
                 }
 
-                leads.push({
+                const newLead = {
                     name,
                     street,
                     houseNumber,
@@ -293,7 +386,11 @@
                     detailLink,
                     ratingScore,
                     ratingCount
-                });
+                };
+                if (runPlugins('beforeAddLead', { lead: newLead }) !== false) {
+                    leads.push(newLead);
+                    runPlugins('afterAddLead', { lead: newLead });
+                }
                 entry.setAttribute("data-scraped", "true");
                 totalScraped++;
 
@@ -307,11 +404,13 @@
         }
 
         scrapeInProgress = false;
-        console.log("✅ Scraping-Zyklus abgeschlossen. Insgesamt Einträge:", totalScraped);
+        logger.info("✅ Scraping-Zyklus abgeschlossen. Insgesamt Einträge:", totalScraped);
+        runPlugins('afterScrape', { total: totalScraped });
+        logger.groupEnd();
     }
 
     async function loadMoreEntries() {
-        console.log("📡 Lade weitere Einträge...");
+        logger.info("📡 Lade weitere Einträge...");
         const loadMoreButton = document.querySelector("#mod-LoadMore--button");
         if (loadMoreButton) {
             loadMoreButton.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -324,10 +423,10 @@
             } else {
                 loadMoreButton.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
             }
-            console.log("📡 Klick auf 'Mehr laden'.");
+            logger.info("📡 Klick auf 'Mehr laden'.");
             await delay(SCRAPE_DELAY);
         } else {
-            console.log("🛑 Button 'Mehr laden' nicht gefunden.");
+            logger.warn("🛑 Button 'Mehr laden' nicht gefunden.");
         }
     }
 
@@ -454,7 +553,7 @@
                 }
             });
         } catch (err) {
-            console.error("Fehler beim Abrufen der Details:", err);
+            logger.error("Fehler beim Abrufen der Details:", err);
             alert("Fehler beim Abrufen der Details.");
         }
     }
@@ -648,6 +747,45 @@
         transform: scale(1.05);
         background: linear-gradient(135deg, #562b7d, #4e256c);
     }
+    /* --- Login Overlay --- */
+    #gs-login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 10004;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #gs-login-modal {
+        background: #f3f3f3;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        text-align: center;
+    }
+    #gs-login-modal input {
+        display: block;
+        width: 200px;
+        margin: 10px auto;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    #gs-login-modal button {
+        background: linear-gradient(135deg, #562b7d, #4e256c);
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    #gs-login-modal button:hover {
+        background: linear-gradient(135deg, #de7227, #c85f1f);
+    }
     `);
     gsStyle.id = "gs-scraper-style";
 
@@ -689,9 +827,9 @@
                 isPaused = !isPaused;
                 updateLeadCount();
                 if (!isPaused) {
-                    scrapeData().catch(err => console.error("Fehler während des Scrapings:", err));
+                    scrapeData().catch(err => logger.error("Fehler während des Scrapings:", err));
                 } else {
-                    console.log("⏸️ Scraping pausiert.");
+                    logger.info("⏸️ Scraping pausiert.");
                 }
             });
             container.appendChild(scrapeBtn);
@@ -708,7 +846,7 @@
             loadMoreBtn.querySelector('input').addEventListener("click", e => {
                 e.stopPropagation();
                 loadMultiple = e.target.checked;
-                console.log("Load Multiple ist jetzt", loadMultiple);
+                logger.info("Load Multiple ist jetzt", loadMultiple);
             });
             loadMoreBtn.addEventListener("click", async () => {
                 await loadMoreEntries();
@@ -718,11 +856,13 @@
 
         createButton("gs-showResultsButton", "view", "Ergebnisse anzeigen", displayResults);
         createButton("gs-downloadJSONButton", "download", "JSON herunterladen", downloadDataAsJSON);
+        createButton("gs-downloadCSVButton", "download", "CSV herunterladen", downloadDataAsCSV);
+        createButton("gs-downloadXLSButton", "download", "Excel herunterladen", downloadDataAsExcel);
         createButton("gs-toggleRemoveButton", "toggle", `Verarbeitete entfernen: ${REMOVE_PROCESSED_ENTRIES ? "EIN" : "AUS"}`, () => {
             REMOVE_PROCESSED_ENTRIES = !REMOVE_PROCESSED_ENTRIES;
             const btn = document.getElementById("gs-toggleRemoveButton");
             btn.textContent = `Verarbeitete entfernen: ${REMOVE_PROCESSED_ENTRIES ? "EIN" : "AUS"}`;
-            console.log(`Verarbeitete entfernen ist jetzt ${REMOVE_PROCESSED_ENTRIES ? "aktiviert" : "deaktiviert"}.`);
+            logger.info(`Verarbeitete entfernen ist jetzt ${REMOVE_PROCESSED_ENTRIES ? "aktiviert" : "deaktiviert"}.`);
         });
 
         let speedupContainer = document.getElementById("gs-speedup-container");
@@ -756,6 +896,8 @@
                         <button class="copy-btn">JSON in Zwischenablage kopieren</button>
                         <button class="open-view-btn">Ansicht in neuem Tab öffnen</button>
                         <button class="download-json-btn">JSON herunterladen</button>
+                        <button class="download-csv-btn">CSV herunterladen</button>
+                        <button class="download-xls-btn">Excel herunterladen</button>
                     </div>
                     <div id="gs-scraper-table-container"></div>
                 </div>
@@ -800,10 +942,12 @@
             newWindow.document.close();
         });
         modalOverlay.querySelector('.download-json-btn').addEventListener("click", downloadDataAsJSON);
+        modalOverlay.querySelector('.download-csv-btn').addEventListener("click", downloadDataAsCSV);
+        modalOverlay.querySelector('.download-xls-btn').addEventListener("click", downloadDataAsExcel);
     }
 
     async function load1000Leads(method) {
-        console.log(`🚀 Speed‑up Methode ${method} gestartet, um 1000 Leads zu laden...`);
+        logger.info(`🚀 Speed‑up Methode ${method} gestartet, um 1000 Leads zu laden...`);
         for (let i = 0; i < 100; i++) {
             const loadMoreButton = document.querySelector("#mod-LoadMore--button");
             if (loadMoreButton) {
@@ -834,11 +978,39 @@
                         await delay(50);
                 }
             } else {
-                console.log("🛑 Button 'Mehr laden' nicht gefunden.");
+                logger.warn("🛑 Button 'Mehr laden' nicht gefunden.");
                 break;
             }
         }
-        console.log(`✅ Speed‑up Methode ${method} abgeschlossen (ca. 1000 Leads geladen).`);
+        logger.info(`✅ Speed‑up Methode ${method} abgeschlossen (ca. 1000 Leads geladen).`);
+    }
+
+    function showLogin() {
+        if (localStorage.getItem('gsLoggedIn') === 'true') {
+            init();
+            return;
+        }
+        const overlay = document.createElement('div');
+        overlay.id = 'gs-login-overlay';
+        overlay.innerHTML = `
+            <div id="gs-login-modal">
+                <h2>Login</h2>
+                <input type="text" id="gs-login-user" placeholder="Benutzername">
+                <input type="password" id="gs-login-pass" placeholder="Passwort">
+                <button id="gs-login-btn">Login</button>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#gs-login-btn').addEventListener('click', () => {
+            const u = overlay.querySelector('#gs-login-user').value.trim();
+            const p = overlay.querySelector('#gs-login-pass').value.trim();
+            if (u === LOGIN_USER && p === LOGIN_PASS) {
+                localStorage.setItem('gsLoggedIn', 'true');
+                overlay.remove();
+                init();
+            } else {
+                alert('Login fehlgeschlagen.');
+            }
+        });
     }
 
     /*******************************
@@ -847,9 +1019,9 @@
     function init() {
         createControlPanel();
         createModalViewer();
-        console.log("🚀 Globl Scraper UI bereit!");
+        logger.info("🚀 Globl Scraper UI bereit!");
     }
-    init();
+    showLogin();
 
-    console.log("Initialisiert und wartet auf Benutzeraktion.");
+    logger.info("Initialisiert und wartet auf Benutzeraktion.");
 })();
